@@ -17,6 +17,28 @@ from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 from matplotlib.figure import Figure
 
 
+class CanvasPanel(wx.Panel):
+    def __init__(self, parent, image=fits.open("horse.fits")):
+        wx.Panel.__init__(self, parent)
+        header=image['PRIMARY'].header
+        data=image['PRIMARY'].data
+        image.close()
+        wcs=WCS(header)
+        
+        self.fig=plt.figure()
+        ax=self.fig.add_axes([0.1,0.1,0.8,0.8], projection=wcs)
+        ax.set_xlabel('RA')
+        ax.set_ylabel('Dec')
+        ax.imshow(data, cmap='gist_heat', origin='lower')
+        ra=ax.coords[0]
+#        ra.set_major_formatter('hh:mm:ss')
+        dec=ax.coords[1]
+#        dec.set_major_formatter('dd:mm:ss');
+        
+        self.canvas =FigureCanvas(self,-1,self.fig)
+
+        
+
 class MainWindow(wx.Frame):
     def __init__(self, parent, title):
         wx.Frame.__init__(self, parent, title=title)
@@ -59,21 +81,25 @@ class MainWindow(wx.Frame):
         
         
         #Figure
-        image=fits.open("red.fits")
-        header=image['PRIMARY'].header
-        data=image['PRIMARY'].data
-        image.close()
-        wcs=WCS(header)
+        #image=fits.open("red.fits")
+#        image=fits.open("horse.fits")
+#        header=image['PRIMARY'].header
+#        data=image['PRIMARY'].data
+#        image.close()
+#        wcs=WCS(header)
+#        
+#        self.fig=plt.figure()
+#        ax=self.fig.add_axes([0.1,0.1,0.8,0.8], projection=wcs)
+#        ax.set_xlabel('RA')
+#        ax.set_ylabel('Dec')
+#        ax.imshow(data, cmap='gist_heat', origin='lower')
+#        ra=ax.coords[0]
+#        ra.set_major_formatter('hh:mm:ss')
+#        dec=ax.coords[1]
+#        dec.set_major_formatter('dd:mm:ss');
         
-        self.fig=plt.figure()
-        ax=self.fig.add_axes([0.1,0.1,0.8,0.8], projection=wcs)
-        ax.set_xlabel('RA')
-        ax.set_ylabel('Dec')
-        ax.imshow(data, cmap='gist_heat', origin='lower')
-        ra=ax.coords[0]
-        ra.set_major_formatter('hh:mm:ss')
-        dec=ax.coords[1]
-        dec.set_major_formatter('dd:mm:ss');
+#        global prueba
+        prueba=CanvasPanel(self)
         
         
 #        np.sqrt(1+np.sqrt(fits.getdata('red.fits')+2))
@@ -87,19 +113,19 @@ class MainWindow(wx.Frame):
 #        s=np.sin(2*np.pi*t)
 #        
 #        self.axes.plot(t,s)
-        self.canvas = FigureCanvas(self, 0, self.fig)
-        
+#        self.canvas = FigureCanvas(self, 0, self.fig)
+#        
         
         
         #Layout
         self.mainSizer=wx.BoxSizer(wx.VERTICAL)
         self.mainSizer.Add(self.sizerbut, 0, wx.EXPAND)
-        self.mainSizer.Add(self.fig, 1, wx.EXPAND)
+        self.mainSizer.Add(prueba, 1, wx.EXPAND)
 
         self.SetSizer(self.mainSizer)
         self.SetAutoLayout(1)
         #self.sizer.Fit(self)     
-        self.SetSize((500,400))
+        self.SetSize((650,600))
         
         self.Show(True)
         
@@ -119,12 +145,16 @@ class MainWindow(wx.Frame):
         self.dirname=''
         dlg = wx.FileDialog(self, "Choose a file", self.dirname, "", "*.fits", wx.OPEN)
         if dlg.ShowModal() == wx.ID_OK:
+            global prueba
+            prueba.Hide()
             self.filename = dlg.GetFilename()
             self.dirname = dlg.GetDirectory()
-            f = open(os.path.join(self.dirname, self.filename), 'r')
-            #self.control.SetValue(f.read())
-            self.axes
-            f.close()
+            image = fits.open(os.path.join(self.dirname, self.filename))
+            prueba=CanvasPanel(self,image)
+            prueba.Refresh
+            prueba.Show()
+            global mainSizer
+            mainSizer.Layout()
         dlg.Destroy
         
         

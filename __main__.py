@@ -6,10 +6,10 @@ Comment
 
 import wx
 import os
-#from astropy.io import fits
+from astropy.io import fits
 #from astropy.utils.data import download_file
 import matplotlib.pyplot as plt
-#from astropy.wcs import WCS
+from astropy.wcs import WCS
 #from astropy.coordinates import SkyCoord
 #from astropy.nddata import Cutout2D
 import numpy as np
@@ -59,20 +59,42 @@ class MainWindow(wx.Frame):
         
         
         #Figure
-        self.figure =Figure()
-        self.axes = self.figure.add_subplot(111)
-        t=np.arange(0.0, 3.0, 0.01)
-        s=np.sin(2*np.pi*t)
+        image=fits.open("red.fits")
+        header=image['PRIMARY'].header
+        data=image['PRIMARY'].data
+        image.close()
+        wcs=WCS(header)
         
-        self.axes.plot(t,s)
-        self.canvas = FigureCanvas(self, -1, self.figure)
+        self.fig=plt.figure()
+        ax=self.fig.add_axes([0.1,0.1,0.8,0.8], projection=wcs)
+        ax.set_xlabel('RA')
+        ax.set_ylabel('Dec')
+        ax.imshow(data, cmap='gist_heat', origin='lower')
+        ra=ax.coords[0]
+        ra.set_major_formatter('hh:mm:ss')
+        dec=ax.coords[1]
+        dec.set_major_formatter('dd:mm:ss');
+        
+        
+#        np.sqrt(1+np.sqrt(fits.getdata('red.fits')+2))
+#        self.figure=plt.imshow(image, cmap='gist_heat', origin='lower')
+#        plt.colorbar();
+        
+        #
+#        self.figure =Figure()
+#        self.axes = self.figure.add_subplot(111)
+#        t=np.arange(0.0, 3.0, 0.01)
+#        s=np.sin(2*np.pi*t)
+#        
+#        self.axes.plot(t,s)
+        self.canvas = FigureCanvas(self, 0, self.fig)
         
         
         
         #Layout
         self.mainSizer=wx.BoxSizer(wx.VERTICAL)
         self.mainSizer.Add(self.sizerbut, 0, wx.EXPAND)
-        self.mainSizer.Add(self.canvas, 1, wx.LEFT | wx.TOP | wx.EXPAND)
+        self.mainSizer.Add(self.fig, 1, wx.EXPAND)
 
         self.SetSizer(self.mainSizer)
         self.SetAutoLayout(1)
@@ -101,6 +123,7 @@ class MainWindow(wx.Frame):
             self.dirname = dlg.GetDirectory()
             f = open(os.path.join(self.dirname, self.filename), 'r')
             #self.control.SetValue(f.read())
+            self.axes
             f.close()
         dlg.Destroy
         

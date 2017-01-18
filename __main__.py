@@ -18,29 +18,41 @@ from matplotlib.figure import Figure
 
 
 class CanvasPanel(wx.Panel):
-    def __init__(self, parent, image=fits.open("horse.fits")):
+    def __init__(self, parent, image=fits.open("horse.fits"),option="Normal"):
         wx.Panel.__init__(self, parent)
         self.SetImage(fits.open("horse.fits"))
         
         
-    def SetImage(self, image):
+    def SetImage(self, image, option="Normal"):
         header=image['PRIMARY'].header
-        data=image['PRIMARY'].data
+        self.data=image['PRIMARY'].data
         image.close()
         wcs=WCS(header)
         
         self.fig=plt.figure()
-        ax=self.fig.add_axes([0.1,0.1,0.8,0.8], projection=wcs)
-        ax.set_xlabel('RA')
-        ax.set_ylabel('Dec')
-        ax.imshow(np.sqrt(1+data), cmap='gist_heat', origin='lower')
-        ra=ax.coords[0]
+        self.ax=self.fig.add_axes([0.1,0.1,0.8,0.8], projection=wcs)
+        self.ax.set_xlabel('RA')
+        self.ax.set_ylabel('Dec')   
+        
+        self.ax.imshow(self.data, cmap='gist_heat', origin='lower')
+        ra=self.ax.coords[0]
         ra.set_major_formatter('hh:mm:ss')
-        dec=ax.coords[1]
+        dec=self.ax.coords[1]
         dec.set_major_formatter('dd:mm:ss');
         self.canvas =FigureCanvas(self,-1,self.fig)
         
+        
+    def SetOption(self, option):
+        if option=="Root":
+            self.ax.imshow(np.sqrt(1+self.data), cmap='gist_heat', origin='lower')
+        elif option=="Logarithmic":
+            self.ax.imshow(np.log(1+self.data), cmap='gist_heat', origin='lower')
+        else:
+            self.ax.imshow(self.data, cmap='gist_heat', origin='lower')
+        self.canvas.draw()
+        
 
+        
         
 class MainWindow(wx.Frame):
     def __init__(self, parent, title):
@@ -79,17 +91,35 @@ class MainWindow(wx.Frame):
         self.Bind(wx.EVT_BUTTON, self.OnExit, But[1])
         
         
+        #Options
+        self.rbint = wx.RadioBox(self, label="Set intensity", choices=['Normal', 'Root', 'Logarithmic'])
+        self.Bind(wx.EVT_RADIOBOX, self.OnInten, self.rbint)
+        
+        self.revint= wx.CheckBox(self, label="Inverse intensity")
+        self.Bind(wx.EVT_CHECKBOX, self.OnRevInten, self.revint)
+        
+#        self.rbcolor = wx.RadioBox(self, label="Set color", choices=['Red', 'Green', 'Blue'])
+#        self.Bind(wx.EVT_RADIOBOX, self.EvtRadioBox, self.rbint)
+        self.rbcolor=wx.ColourPickerCtrl(self)
+        self.Bind(wx.EVT_COLOURPICKER_CHANGED, self.OnColor, self.rbcolor)
+        
+        
         
         #Figure
-        global canvas
-        canvas=CanvasPanel(self)
+        self.panel=CanvasPanel(self)
         
         
         
         #Layout
+        sizeropt=wx.BoxSizer(wx.HORIZONTAL)
+        sizeropt.Add(self.rbint, 0, wx.EXPAND)
+        sizeropt.Add(self.revint, 0, wx.EXPAND)
+        
         self.mainSizer=wx.BoxSizer(wx.VERTICAL)
         self.mainSizer.Add(self.sizerbut, 0, wx.EXPAND)
-        self.mainSizer.Add(canvas, 1, wx.EXPAND)
+        self.mainSizer.Add(self.panel, 1, wx.EXPAND)
+        self.mainSizer.Add(sizeropt, 0, wx.EXPAND)
+        self.mainSizer.Add(self.rbcolor, 0, wx.EXPAND)
 
         self.SetSizer(self.mainSizer)
         self.SetAutoLayout(1)
@@ -98,8 +128,20 @@ class MainWindow(wx.Frame):
         
         self.Show(True)
         
-    
+    def OnColor(self,event):
+        color=self.rbcolor.GetColour()
+        print(color)
         
+        
+    def OnInten(self, event):
+        inten= self.rbint.GetStringSelection()
+        self.panel.SetOption(inten)
+        
+    def OnRevInten(self, event):
+        if self.revint.GetValue():
+            self.panel.canvas.ax.cmap='gist_heat_r'
+        else:
+            self.panel.canvas.ax.cmap='gist_heat'
         
     def OnAbout(self,e):
         dlg = wx.MessageDialog(self, "A small astronomical image analyzer", "About Pyspotter", wx.OK)
@@ -116,8 +158,9 @@ class MainWindow(wx.Frame):
             self.filename = dlg.GetFilename()
             self.dirname = dlg.GetDirectory()
             img = fits.open(os.path.join(self.dirname, self.filename))
-            canvas.SetImage(img)
-            canvas.Show()
+            option= self.rbint.GetStringSelection()
+            self.panel.SetImage(img,option)
+            self.panel.Show()
         dlg.Destroy()
         
         

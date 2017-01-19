@@ -23,7 +23,7 @@ class CanvasPanel(wx.Panel):
         self.SetImage(fits.open("horse.fits"))
         
         
-    def SetImage(self, image, option="Normal"):
+    def SetImage(self, image):
         header=image['PRIMARY'].header
         self.data=image['PRIMARY'].data
         image.close()
@@ -42,13 +42,13 @@ class CanvasPanel(wx.Panel):
         self.canvas =FigureCanvas(self,-1,self.fig)
         
         
-    def SetOption(self, option):
+    def SetOption(self, option, color='gist_heat'):
         if option=="Root":
-            self.ax.imshow(np.sqrt(1+self.data), cmap='gist_heat', origin='lower')
+            self.ax.imshow(np.sqrt(1+self.data), cmap=color, origin='lower')
         elif option=="Logarithmic":
-            self.ax.imshow(np.log(1+self.data), cmap='gist_heat', origin='lower')
+            self.ax.imshow(np.log(1+self.data), cmap=color, origin='lower')
         else:
-            self.ax.imshow(self.data, cmap='gist_heat', origin='lower')
+            self.ax.imshow(self.data, cmap=color, origin='lower')
         self.canvas.draw()
         
 
@@ -92,17 +92,23 @@ class MainWindow(wx.Frame):
         
         
         #Options
+        self.revinten = False
+        self.color = "gist_heat"
+        self.inten = "Normal"
+        
         self.rbint = wx.RadioBox(self, label="Set intensity", choices=['Normal', 'Root', 'Logarithmic'])
         self.Bind(wx.EVT_RADIOBOX, self.OnInten, self.rbint)
         
         self.revint= wx.CheckBox(self, label="Inverse intensity")
         self.Bind(wx.EVT_CHECKBOX, self.OnRevInten, self.revint)
         
-#        self.rbcolor = wx.RadioBox(self, label="Set color", choices=['Red', 'Green', 'Blue'])
-#        self.Bind(wx.EVT_RADIOBOX, self.EvtRadioBox, self.rbint)
-        self.rbcolor=wx.ColourPickerCtrl(self)
-        self.Bind(wx.EVT_COLOURPICKER_CHANGED, self.OnColor, self.rbcolor)
-        
+        self.colorque = wx.StaticText(self, label="Set colormap")
+        cmaps = ['%Perceptually Uniform Sequential','viridis', 'inferno', 'plasma', 'magma','%Sequential','Blues', 'BuGn', 'BuPu','GnBu', 'Greens', 'Greys', 'Oranges', 'OrRd','PuBu', 'PuBuGn', 'PuRd', 'Purples', 'RdPu', 'Reds', 'YlGn', 'YlGnBu', 'YlOrBr', 'YlOrRd', '%Sequential (2)', 'afmhot', 'autumn', 'bone', 'cool', 'copper', 'gist_heat', 'gray', 'hot', 'pink', 'spring', 'summer', 'winter', '%Diverging', 'BrBG', 'bwr', 'coolwarm', 'PiYG', 'PRGn', 'PuOr', 'RdBu', 'RdGy', 'RdYlBu', 'RdYlGn', 'Spectral', 'seismic', '%Qualitative', 'Accent', 'Dark2', 'Paired', 'Pastel1', 'Pastel2', 'Set1', 'Set2', 'Set3', 'Vega10', 'Vega20', 'Vega20b', 'Vega20c', '%Miscellaneous', 'gist_earth', 'terrain', 'ocean', 'gist_stern', 'brg', 'CMRmap', 'cubehelix', 'gnuplot', 'gnuplot2', 'gist_ncar', 'nipy_spectral', 'jet', 'rainbow', 'gist_rainbow', 'hsv', 'flag', 'prism']
+        self.colorlist=wx.ComboBox(self, choices=cmaps, style=wx.CB_DROPDOWN, value='gist_heat')
+        self.Bind(wx.EVT_COMBOBOX, self.OnColor, self.colorlist)
+                           
+#        self.rbcolor=wx.ColourPickerCtrl(self)
+#        self.Bind(wx.EVT_COLOURPICKER_CHANGED, self.OnColor, self.rbcolor)
         
         
         #Figure
@@ -114,12 +120,14 @@ class MainWindow(wx.Frame):
         sizeropt=wx.BoxSizer(wx.HORIZONTAL)
         sizeropt.Add(self.rbint, 0, wx.EXPAND)
         sizeropt.Add(self.revint, 0, wx.EXPAND)
+        sizeropt.Add(self.colorque, 1, wx.EXPAND)
+        sizeropt.Add(self.colorlist, 1, wx.EXPAND)
         
         self.mainSizer=wx.BoxSizer(wx.VERTICAL)
         self.mainSizer.Add(self.sizerbut, 0, wx.EXPAND)
         self.mainSizer.Add(self.panel, 1, wx.EXPAND)
         self.mainSizer.Add(sizeropt, 0, wx.EXPAND)
-        self.mainSizer.Add(self.rbcolor, 0, wx.EXPAND)
+#        self.mainSizer.Add(self.rbcolor, 0, wx.EXPAND)
 
         self.SetSizer(self.mainSizer)
         self.SetAutoLayout(1)
@@ -129,19 +137,25 @@ class MainWindow(wx.Frame):
         self.Show(True)
         
     def OnColor(self,event):
-        color=self.rbcolor.GetColour()
-        print(color)
-        
+#        color=self.rbcolor.GetColour()
+#        print(color)
+        if self.revinten:
+            self.color=event.GetString()+"_r"
+        else:
+            self.color=event.GetString()
+        self.panel.SetOption(self.inten, self.color)
         
     def OnInten(self, event):
-        inten= self.rbint.GetStringSelection()
-        self.panel.SetOption(inten)
+        self.inten= self.rbint.GetStringSelection()
+        self.panel.SetOption(self.inten, self.color)
         
     def OnRevInten(self, event):
-        if self.revint.GetValue():
-            self.panel.canvas.ax.cmap='gist_heat_r'
+        self.revinten= self.revint.GetValue()
+        if self.revinten:
+            self.color=self.color+"_r"
         else:
-            self.panel.canvas.ax.cmap='gist_heat'
+            self.color=self.color[:-2]
+        self.panel.SetOption(self.inten, self.color)
         
     def OnAbout(self,e):
         dlg = wx.MessageDialog(self, "A small astronomical image analyzer", "About Pyspotter", wx.OK)
@@ -158,8 +172,9 @@ class MainWindow(wx.Frame):
             self.filename = dlg.GetFilename()
             self.dirname = dlg.GetDirectory()
             img = fits.open(os.path.join(self.dirname, self.filename))
-            option= self.rbint.GetStringSelection()
-            self.panel.SetImage(img,option)
+#            option= self.rbint.GetStringSelection()
+            self.panel.SetImage(img)
+            self.panel.SetOption(self.inten,self.color)
             self.panel.Show()
         dlg.Destroy()
         

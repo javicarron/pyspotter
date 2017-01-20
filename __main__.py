@@ -21,9 +21,9 @@ import surveys
 
 class CanvasPanel(wx.Panel):
     """Panel in which all the images are plotted."""
-    def __init__(self, parent, image=fits.open("horse.fits"),option="Normal"):
+    def __init__(self, parent, image=fits.open("data/horse.fits"),option="Normal"):
         wx.Panel.__init__(self, parent)
-        self.SetImage(fits.open("horse.fits"))
+        self.SetImage(fits.open("data/horse.fits"))
         
     def SetImage(self, image):
         """Set an image to the canvas, setting the axes automatically"""
